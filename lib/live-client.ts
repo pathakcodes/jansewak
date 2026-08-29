@@ -1,0 +1,219 @@
+"use client";
+
+import { GoogleGenAI, LiveServerMessage, MediaResolution, Modality, Session } from "@google/genai";
+import { MicCapture, SpeakerPlayback } from "./audio";
+import { buildSystemInstruction } from "./prompts";
+import { dispatchToolCall, functionDeclarations, ToolUIHandlers } from "./tools";
+
+export type SessionStatus = "idle" | "connecting" | "live" | "error" | "closed";
+
+export interface TranscriptEntry {
+  id: number;
+  role: "user" | "agent";
+  text: string;
+  final: boolean;
+}
+
+export interface LiveClientEvents extends ToolUIHandlers {
+  onStatus: (status: SessionStatus, detail?: string) => void;
+  onTranscript: (entries: TranscriptEntry[]) => void;
+  onSpeakingChange: (speaking: boolean) => void;
+}
+
+export class JanSewakLive {
+  private session: Session | null = null;
+  private mic = new MicCapture();
+  readonly playback = new SpeakerPlayback();
+  private events: LiveClientEvents;
+  private transcript: TranscriptEntry[] = [];
+  private entryId = 0;
+  private currentUser: TranscriptEntry | null = null;
+  private currentAgent: TranscriptEntry | null = null;
+  private resumptionHandle: string | null = null;
+  private closingIntentionally = false;
+  private model = "";
+  status: SessionStatus = "idle";
+
+  constructor(events: LiveClientEvents) {
+    this.events = events;
+  }
+
+  private setStatus(status: SessionStatus, detail?: string) {
+    this.status = status;
+    this.events.onStatus(status, detail);
+  }
+
+  async connect(language: string): Promise<void> {
+    this.closingIntentionally = false;
+    this.setStatus("connecting");
+
+    let token: string, model: string;
+    try {
+      const res = await fetch("/api/token");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Token request failed");
+      token = data.token;
+      model = data.model;
+    } catch (err) {
+      this.setStatus("error", err instanceof Error ? err.message : "Could not reach the token service.");
+      return;
+    }
+    this.model = model;
+
+    try {
+      await this.playback.start();
+
+      const ai = new GoogleGenAI({
+        apiKey: token,
+        httpOptions: { apiVersion: "v1alpha" },
+      });
+
+      this.session = await ai.live.connect({
+        model,
+        config: {
+          responseModalities: [Modality.AUDIO],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } },
+          },
+          systemInstruction: buildSystemInstruction(language),
+          tools: [{ googleSearch: {} }, { functionDeclarations }],
+          // Read screen frames at a useful detail level for form/button text.
+          mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
+          // Let the model choose to stay silent instead of replying to every sound/frame.
+          proactivity: { proactiveAudio: true },
+          inputAudioTranscription: {},
+          outputAudioTranscription: {},
+          sessionResumption: this.resumptionHandle ? { handle: this.resumptionHandle } : {},
+          contextWindowCompression: { slidingWindow: {} },
+        },
+        callbacks: {
+          onopen: () => this.setStatus("live"),
+          onmessage: (msg) => this.handleMessage(msg),
+          onerror: (e) => {
+            console.error("Live session error", e);
+            this.setStatus("error", e.message || "Connection error");
+          },
+          onclose: (e) => {
+            if (!this.closingIntentionally) {
+              // Try to resume once if we have a handle; otherwise report.
+              this.setStatus("closed", e?.reason || undefined);
+            }
+          },
+        },
+      });
+
+      await this.mic.start((base64Pcm) => {
+        this.session?.sendRealtimeInput({
+          audio: { data: base64Pcm, mimeType: "audio/pcm;rate=16000" },
+        });
+      });
+    } catch (err) {
+      console.error("Failed to start live session", err);
+      this.setStatus(
+        "error",
+        err instanceof Error ? err.message : "Could not start the voice session. Check mic permission.",
+      );
+      this.disconnect();
+    }
+  }
+
+  private pushTranscript() {
+    this.events.onTranscript([...this.transcript]);
+  }
+
+  private handleMessage(msg: LiveServerMessage) {
+    const content = msg.serverContent;
+
+    if (content?.inputTranscription?.text) {
+      if (!this.currentUser) {
+        this.currentUser = { id: ++this.entryId, role: "user", text: "", final: false };
+        this.transcript.push(this.currentUser);
+      }
+      this.currentUser.text += content.inputTranscription.text;
+      this.pushTranscript();
+    }
+
+    if (content?.outputTranscription?.text) {
+      if (!this.currentAgent) {
+        this.currentAgent = { id: ++this.entryId, role: "agent", text: "", final: false };
+        this.transcript.push(this.currentAgent);
+      }
+      this.currentAgent.text += content.outputTranscription.text;
+      this.pushTranscript();
+    }
+
+    if (content?.modelTurn?.parts) {
+      for (const part of content.modelTurn.parts) {
+        if (part.inlineData?.data) {
+          this.playback.enqueue(part.inlineData.data);
+          this.events.onSpeakingChange(true);
+        }
+      }
+    }
+
+    if (content?.interrupted) {
+      this.playback.flush();
+      this.events.onSpeakingChange(false);
+    }
+
+    if (content?.turnComplete) {
+      if (this.currentUser) this.currentUser.final = true;
+      if (this.currentAgent) this.currentAgent.final = true;
+      this.currentUser = null;
+      this.currentAgent = null;
+      this.pushTranscript();
+      this.events.onSpeakingChange(false);
+    }
+
+    if (msg.toolCall?.functionCalls) {
+      const responses = msg.toolCall.functionCalls.map((fc) => ({
+        id: fc.id,
+        name: fc.name,
+        response: dispatchToolCall(fc.name ?? "", (fc.args ?? {}) as Record<string, unknown>, this.events),
+      }));
+      this.session?.sendToolResponse({ functionResponses: responses });
+    }
+
+    if (msg.sessionResumptionUpdate?.resumable && msg.sessionResumptionUpdate.newHandle) {
+      this.resumptionHandle = msg.sessionResumptionUpdate.newHandle;
+    }
+
+    if (msg.goAway) {
+      // Server is about to drop us; note it so the UI can offer reconnect.
+      console.warn("Live session goAway; timeLeft:", msg.goAway.timeLeft);
+    }
+  }
+
+  sendScreenFrame(base64Jpeg: string) {
+    this.session?.sendRealtimeInput({
+      video: { data: base64Jpeg, mimeType: "image/jpeg" },
+    });
+  }
+
+  /** Send a typed text message (used for quick prompts / accessibility). */
+  sendText(text: string) {
+    this.session?.sendRealtimeInput({ text });
+  }
+
+  setMicMuted(muted: boolean) {
+    this.mic.setMuted(muted);
+    if (muted) this.session?.sendRealtimeInput({ audioStreamEnd: true });
+  }
+
+  get modelName() {
+    return this.model;
+  }
+
+  disconnect() {
+    this.closingIntentionally = true;
+    this.mic.stop();
+    this.playback.stop();
+    try {
+      this.session?.close();
+    } catch {
+      /* already closed */
+    }
+    this.session = null;
+    this.setStatus("idle");
+  }
+}
