@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 !.env.example
+
+# demo video served via Vercel, kept out of git (64MB)
+public/pitch/demo.mp4

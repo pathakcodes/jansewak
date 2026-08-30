@@ -1,8 +1,26 @@
-# जनसेवक · JanSewak
+<p align="center">
+  <img src="assets/jansewak-avatar.svg" width="230" alt="JanSewak — animated avatar of a lady in a violet saree greeting with namaste" />
+</p>
+
+<h1 align="center">जनसेवक · JanSewak</h1>
+
+<p align="center"><b>Your voice guide for sarkari websites.</b></p>
+
+<p align="center">
+  🌐 <a href="https://jansewak.vercel.app"><b>Live app</b></a>
+  &nbsp;·&nbsp; 🎬 <a href="https://jansewak.vercel.app/pitch/demo.mp4"><b>Watch the demo video</b></a>
+  &nbsp;·&nbsp; 📊 <a href="https://jansewak.vercel.app/pitch/slides.html"><b>Pitch deck</b></a>
+</p>
+
+---
 
 **Your own government-work assistant.** Talk to a warm AI sahayak — a lady in a saree — in **any Indian language**, and she guides you step by step through any Indian government website: train tickets on IRCTC, PF on EPFO, Aadhaar, pensions, complaints and more.
 
 Built for the [Build What Moves India](https://buildwhatmovesindia.com) hackathon.
+
+## 🎬 See her in action
+
+**[▶ Watch: JanSewak guides a citizen through a government form](https://jansewak.vercel.app/pitch/demo.mp4)** — voice conversation in Hindi, screen sharing, the always-on-top guide window highlighting each field, and one-tap copy chips filling the form.
 
 ## What she does
 
