@@ -11,7 +11,7 @@
 > "This is JanSewak — a sahayak you *talk to*, in any Indian language, who guides you through any government website, click by click."
 
 ### 0:08–0:16 · Slide 2 (Problem)
-> "900 million Indians are online, but sarkari websites assume you read English and know where to click. Even educated citizens end up hunting YouTube tutorials — thousands of them, outdated, and never about *your* screen or *your* case."
+> "900 million Indians are online, but on a sarkari website everyone — farmer or engineer — needs a guide, and there's no one to ask. So people hunt YouTube tutorials: thousands of them, outdated, and never about *your* screen or *your* case."
 
 ### 0:16–0:20 · Slide 3 (Demo intro)
 > "Watch a citizen fill an income-tax form — just by talking."
