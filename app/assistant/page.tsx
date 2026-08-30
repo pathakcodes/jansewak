@@ -71,6 +71,9 @@ export default function AssistantPage() {
       onSetLanguage: setLanguage,
       onOpenFileTool: setFileToolConfig,
       onInstruction: setInstruction,
+      // Audio-thread heartbeat: drives screen capture even when this tab is
+      // backgrounded (user is on the government site's tab).
+      onMicTick: () => screenRef.current?.capture(),
     });
     clientRef.current = client;
     await client.connect(language);
@@ -93,7 +96,7 @@ export default function AssistantPage() {
       setGuideStream(stream);
       setSharePrompt(false);
       clientRef.current.sendText(
-        "[system note] Screen sharing is now ON — you receive a screenshot of the user's screen about once per second. Briefly confirm you can see it, then guide step by step with highlight_region.",
+        "[system note] Screen sharing is now ON — you receive a screenshot whenever the user's screen changes (and periodically). Briefly confirm you can see it, then guide step by step with highlight_region.",
       );
     } catch {
       // User cancelled the picker; keep the prompt visible.

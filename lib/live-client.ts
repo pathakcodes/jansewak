@@ -18,6 +18,8 @@ export interface LiveClientEvents extends ToolUIHandlers {
   onStatus: (status: SessionStatus, detail?: string) => void;
   onTranscript: (entries: TranscriptEntry[]) => void;
   onSpeakingChange: (speaking: boolean) => void;
+  /** Fires roughly once per second, driven by the mic audio thread. */
+  onMicTick?: () => void;
 }
 
 export class JanSewakLive {
@@ -31,6 +33,7 @@ export class JanSewakLive {
   private currentAgent: TranscriptEntry | null = null;
   private resumptionHandle: string | null = null;
   private closingIntentionally = false;
+  private micChunks = 0;
   private model = "";
   status: SessionStatus = "idle";
 
@@ -79,8 +82,10 @@ export class JanSewakLive {
           tools: [{ googleSearch: {} }, { functionDeclarations }],
           // Read screen frames at a useful detail level for form/button text.
           mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,
-          // Let the model choose to stay silent instead of replying to every sound/frame.
-          proactivity: { proactiveAudio: true },
+          // Measured: thinking off + no proactivity gives ~3.0s to first audio
+          // vs ~4.7s with proactiveAudio and default thinking. Silence
+          // discipline is handled by the system prompt instead.
+          thinkingConfig: { thinkingBudget: 0 },
           inputAudioTranscription: {},
           outputAudioTranscription: {},
           sessionResumption: this.resumptionHandle ? { handle: this.resumptionHandle } : {},
@@ -102,7 +107,16 @@ export class JanSewakLive {
         },
       });
 
-      await this.mic.start((base64Pcm) => {
+      await this.mic.start((base64Pcm, rms) => {
+        // ~1s heartbeat driven by the audio thread. Unlike setInterval, this
+        // keeps firing when the tab is backgrounded (user is on the govt
+        // site's tab), so screen captures stay regular in guide mode.
+        if (++this.micChunks % 8 === 0) this.events.onMicTick?.();
+        // Echo gate: Chrome's echo cancellation does not reliably remove
+        // WebAudio playback from the mic. While the agent is speaking, only
+        // forward clearly-loud audio (a deliberate interruption) — otherwise
+        // her own voice loops back and the server VAD never ends the turn.
+        if (this.playback.isSpeaking && rms < 0.04) return;
         this.session?.sendRealtimeInput({
           audio: { data: base64Pcm, mimeType: "audio/pcm;rate=16000" },
         });

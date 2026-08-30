@@ -54,7 +54,7 @@ export class MicCapture {
   private sourceNode: MediaStreamAudioSourceNode | null = null;
   muted = false;
 
-  async start(onChunk: (base64Pcm: string) => void): Promise<void> {
+  async start(onChunk: (base64Pcm: string, rms: number) => void): Promise<void> {
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
@@ -66,7 +66,11 @@ export class MicCapture {
     this.sourceNode = this.context.createMediaStreamSource(this.stream);
     this.workletNode = new AudioWorkletNode(this.context, "pcm-capture");
     this.workletNode.port.onmessage = (e: MessageEvent<Float32Array>) => {
-      if (!this.muted) onChunk(floatTo16BitPcmBase64(e.data));
+      if (this.muted) return;
+      let sum = 0;
+      for (let i = 0; i < e.data.length; i++) sum += e.data[i] * e.data[i];
+      const rms = Math.sqrt(sum / e.data.length);
+      onChunk(floatTo16BitPcmBase64(e.data), rms);
     };
     this.sourceNode.connect(this.workletNode);
     // Worklet has no output; no need to connect to destination.
