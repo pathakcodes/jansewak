@@ -54,6 +54,7 @@ export default function AssistantPage() {
   useEffect(() => () => stopSession(), [stopSession]);
 
   const startSession = async () => {
+    clientRef.current?.disconnect();
     setTranscript([]);
     setActions([]);
     setCopyTexts([]);

@@ -34,6 +34,10 @@ export class JanSewakLive {
   private resumptionHandle: string | null = null;
   private closingIntentionally = false;
   private micChunks = 0;
+  private open = false;
+  private audioStarted = false;
+  private reconnectAttempts = 0;
+  private lastLanguage = "Hindi";
   private model = "";
   status: SessionStatus = "idle";
 
@@ -46,8 +50,19 @@ export class JanSewakLive {
     this.events.onStatus(status, detail);
   }
 
+  /** Sends only while the socket is open; a dead session drops input silently. */
+  private safeSend(input: Parameters<Session["sendRealtimeInput"]>[0]) {
+    if (!this.open || !this.session) return;
+    try {
+      this.session.sendRealtimeInput(input);
+    } catch {
+      this.open = false;
+    }
+  }
+
   async connect(language: string): Promise<void> {
     this.closingIntentionally = false;
+    this.lastLanguage = language;
     this.setStatus("connecting");
 
     let token: string, model: string;
@@ -58,13 +73,22 @@ export class JanSewakLive {
       token = data.token;
       model = data.model;
     } catch (err) {
+      // During a reconnect, a transient token failure shouldn't end the session.
+      if (this.reconnectAttempts > 0 && this.reconnectAttempts < 3 && !this.closingIntentionally) {
+        this.reconnectAttempts++;
+        setTimeout(() => {
+          if (!this.closingIntentionally) void this.connect(language);
+        }, 1000 * this.reconnectAttempts);
+        return;
+      }
       this.setStatus("error", err instanceof Error ? err.message : "Could not reach the token service.");
       return;
     }
     this.model = model;
 
     try {
-      await this.playback.start();
+      // Audio pipelines survive reconnects — only start them once.
+      if (!this.audioStarted) await this.playback.start();
 
       const ai = new GoogleGenAI({
         apiKey: token,
@@ -92,35 +116,53 @@ export class JanSewakLive {
           contextWindowCompression: { slidingWindow: {} },
         },
         callbacks: {
-          onopen: () => this.setStatus("live"),
+          onopen: () => {
+            this.open = true;
+            this.reconnectAttempts = 0;
+            this.setStatus("live");
+          },
           onmessage: (msg) => this.handleMessage(msg),
           onerror: (e) => {
+            // onclose follows and owns status/reconnect decisions.
             console.error("Live session error", e);
-            this.setStatus("error", e.message || "Connection error");
           },
           onclose: (e) => {
-            if (!this.closingIntentionally) {
-              // Try to resume once if we have a handle; otherwise report.
-              this.setStatus("closed", e?.reason || undefined);
+            this.open = false;
+            this.playback.flush();
+            this.events.onSpeakingChange(false);
+            if (this.closingIntentionally) return;
+            const reason = e?.reason || "Connection lost";
+            // Sessions on the preview model occasionally die ("Internal error
+            // occurred."). Reconnect with the resumption handle so the
+            // conversation continues where it left off.
+            if (this.reconnectAttempts < 3) {
+              this.reconnectAttempts++;
+              this.setStatus("connecting", `फिर से जुड़ रही हूँ… reconnecting (${this.reconnectAttempts}/3)`);
+              setTimeout(() => {
+                if (!this.closingIntentionally) void this.connect(this.lastLanguage);
+              }, 700 * this.reconnectAttempts);
+            } else {
+              this.setStatus("closed", reason);
             }
           },
         },
       });
 
-      await this.mic.start((base64Pcm, rms) => {
-        // ~1s heartbeat driven by the audio thread. Unlike setInterval, this
-        // keeps firing when the tab is backgrounded (user is on the govt
-        // site's tab), so screen captures stay regular in guide mode.
-        if (++this.micChunks % 8 === 0) this.events.onMicTick?.();
-        // Echo gate: Chrome's echo cancellation does not reliably remove
-        // WebAudio playback from the mic. While the agent is speaking, only
-        // forward clearly-loud audio (a deliberate interruption) — otherwise
-        // her own voice loops back and the server VAD never ends the turn.
-        if (this.playback.isSpeaking && rms < 0.04) return;
-        this.session?.sendRealtimeInput({
-          audio: { data: base64Pcm, mimeType: "audio/pcm;rate=16000" },
+      if (!this.audioStarted) {
+        this.audioStarted = true;
+        await this.mic.start((base64Pcm, rms) => {
+          // ~1s heartbeat driven by the audio thread. Unlike setInterval, this
+          // keeps firing when the tab is backgrounded (user is on the govt
+          // site's tab), so screen captures stay regular in guide mode.
+          if (++this.micChunks % 8 === 0) this.events.onMicTick?.();
+          // Echo gate: Chrome's echo cancellation does not reliably remove
+          // WebAudio playback from the mic. While the agent is speaking, only
+          // forward clearly-loud audio (a deliberate interruption) — otherwise
+          // her own voice loops back and the server VAD never ends the turn.
+          if (this.playback.isSpeaking && rms < 0.04) return;
+          this.safeSend({ audio: { data: base64Pcm, mimeType: "audio/pcm;rate=16000" } });
         });
-      });
+      }
     } catch (err) {
       console.error("Failed to start live session", err);
       this.setStatus(
@@ -185,7 +227,11 @@ export class JanSewakLive {
         name: fc.name,
         response: dispatchToolCall(fc.name ?? "", (fc.args ?? {}) as Record<string, unknown>, this.events),
       }));
-      this.session?.sendToolResponse({ functionResponses: responses });
+      try {
+        this.session?.sendToolResponse({ functionResponses: responses });
+      } catch {
+        /* session died mid-call; reconnect flow handles it */
+      }
     }
 
     if (msg.sessionResumptionUpdate?.resumable && msg.sessionResumptionUpdate.newHandle) {
@@ -199,19 +245,17 @@ export class JanSewakLive {
   }
 
   sendScreenFrame(base64Jpeg: string) {
-    this.session?.sendRealtimeInput({
-      video: { data: base64Jpeg, mimeType: "image/jpeg" },
-    });
+    this.safeSend({ video: { data: base64Jpeg, mimeType: "image/jpeg" } });
   }
 
   /** Send a typed text message (used for quick prompts / accessibility). */
   sendText(text: string) {
-    this.session?.sendRealtimeInput({ text });
+    this.safeSend({ text });
   }
 
   setMicMuted(muted: boolean) {
     this.mic.setMuted(muted);
-    if (muted) this.session?.sendRealtimeInput({ audioStreamEnd: true });
+    if (muted) this.safeSend({ audioStreamEnd: true });
   }
 
   get modelName() {
@@ -220,6 +264,8 @@ export class JanSewakLive {
 
   disconnect() {
     this.closingIntentionally = true;
+    this.open = false;
+    this.audioStarted = false;
     this.mic.stop();
     this.playback.stop();
     try {
