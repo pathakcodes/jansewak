@@ -147,8 +147,42 @@ export default function Home() {
         </div>
       </section>
 
-      {/* capabilities */}
+      {/* demo video + pitch deck */}
       <section className="border-y border-orange-200/60 bg-white/60 py-14">
+        <div className="mx-auto max-w-4xl px-5 text-center">
+          <h2 className="text-3xl font-extrabold">
+            जनसेवक को काम करते देखिए <span className="block text-lg font-semibold text-stone-500">See her in action</span>
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-stone-600">
+            A citizen fills a government form just by talking — screen guidance, highlights, and one-tap copy, live.
+          </p>
+          <video
+            controls
+            preload="metadata"
+            playsInline
+            className="mt-8 w-full rounded-2xl border border-orange-200 bg-black shadow-xl shadow-orange-200/40"
+            src="/pitch/demo.mp4"
+          />
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <a
+              href="/pitch/slides.html"
+              target="_blank"
+              className="rounded-full bg-emerald-700 px-7 py-3.5 text-base font-bold text-white shadow-lg shadow-emerald-700/25 transition hover:bg-emerald-800"
+            >
+              📊 Pitch deck देखें · Open pitch deck
+            </a>
+            <Link
+              href="/assistant"
+              className="rounded-full border border-stone-300 bg-white px-7 py-3.5 text-base font-semibold text-stone-700 hover:bg-stone-50"
+            >
+              🎙️ खुद आज़माएँ · Try it yourself
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* capabilities */}
+      <section className="py-14">
         <div className="mx-auto max-w-6xl px-5">
           <h2 className="text-center text-3xl font-extrabold">
             जनसेवक क्या-क्या कर सकती है? <span className="block text-lg font-semibold text-stone-500">What she can do</span>
