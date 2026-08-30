@@ -3,10 +3,27 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { CopyTextItem, FileToolConfig, Highlight } from "@/lib/tools";
+import { loadProfile } from "@/lib/profile";
 import Avatar, { AvatarState } from "./Avatar";
 import CopyText from "./CopyText";
 import FileTools from "./FileTools";
 import ScreenFeed from "./ScreenFeed";
+
+/** Copy chips for every filled profile field — always available in the guide. */
+function profileChips(): CopyTextItem[] {
+  const p = loadProfile();
+  const rows: [string, string][] = [
+    ["नाम (हिन्दी) · Name", p.nameNative],
+    ["Name (English)", p.fullName],
+    ["PAN", p.pan],
+    ["मोबाइल · Mobile", p.mobile],
+    ["ईमेल · Email", p.email],
+    ["पता · Address", p.address],
+    ["उम्र · Age", p.age],
+    ["लिंग · Gender", p.gender],
+  ];
+  return rows.filter(([, v]) => v).map(([fieldHint, text], i) => ({ id: `profile-${i}`, fieldHint, text }));
+}
 
 export interface GuideState {
   stream: MediaStream | null;
@@ -55,12 +72,26 @@ export function GuidePanel({ guide, avatarState, getLevel, onToggleMic, onEndGui
       <ScreenFeed stream={guide.stream} highlight={guide.highlight} />
 
       {guide.copyTexts.length > 0 && (
-        <div className="space-y-1.5 overflow-y-auto" style={{ maxHeight: 150 }}>
+        <div className="space-y-1.5 overflow-y-auto" style={{ maxHeight: 130 }}>
           {guide.copyTexts.map((c) => (
             <CopyText key={c.id} item={c} />
           ))}
         </div>
       )}
+
+      {/* profile details — always on hand, tap to copy into the form */}
+      <details open className="rounded-lg border border-stone-200 bg-white/70 p-2">
+        <summary className="cursor-pointer select-none text-xs font-semibold text-stone-600">
+          👤 मेरी जानकारी · tap to copy
+        </summary>
+        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+          {profileChips().map((c) => (
+            <div key={c.id} className={c.text.length > 18 ? "col-span-2" : ""}>
+              <CopyText item={c} />
+            </div>
+          ))}
+        </div>
+      </details>
 
       {guide.fileToolConfig && <FileTools config={guide.fileToolConfig} />}
 
