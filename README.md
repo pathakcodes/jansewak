@@ -6,6 +6,8 @@
 
 <p align="center"><b>Your voice guide for sarkari websites.</b></p>
 
+<p align="center">Built with ❤️ by <a href="https://github.com/pathakcodes"><b>pathakcodes</b></a> for the <a href="https://buildwhatmovesindia.com"><b>Build What Moves India</b></a> hackathon 🇮🇳</p>
+
 <p align="center">
   🌐 <a href="https://jansewak.vercel.app"><b>Live app</b></a>
   &nbsp;·&nbsp; 🎬 <a href="https://jansewak.vercel.app/pitch/demo.mp4"><b>Watch the demo video</b></a>
