@@ -29,18 +29,36 @@ export const EMPTY_PROFILE: Profile = {
   pan: "",
 };
 
+/** Demo persona pre-seeded until the user saves their own details, so the
+ *  guided-form flow works out of the box (handy for hackathon judges). */
+export const SAMPLE_PROFILE: Profile = {
+  fullName: "Ramesh Kumar",
+  nameNative: "रमेश कुमार",
+  age: "45",
+  gender: "Male",
+  mobile: "9876543210",
+  email: "ramesh.kumar@example.com",
+  address: "House No. 12, Village Rampur, District Sitapur, Uttar Pradesh - 261001",
+  pan: "ABCDE1234F",
+};
+
 export function loadProfile(): Profile {
-  if (typeof window === "undefined") return EMPTY_PROFILE;
+  if (typeof window === "undefined") return SAMPLE_PROFILE;
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? { ...EMPTY_PROFILE, ...JSON.parse(raw) } : EMPTY_PROFILE;
+    return raw ? { ...EMPTY_PROFILE, ...JSON.parse(raw) } : SAMPLE_PROFILE;
   } catch {
-    return EMPTY_PROFILE;
+    return SAMPLE_PROFILE;
   }
 }
 
 export function saveProfile(p: Profile) {
   localStorage.setItem(KEY, JSON.stringify(p));
+}
+
+/** True once the user has saved their own details (seed no longer shown). */
+export function hasSavedProfile(): boolean {
+  return typeof window !== "undefined" && !!localStorage.getItem(KEY);
 }
 
 /** Compact text block injected into the agent's system instruction. */

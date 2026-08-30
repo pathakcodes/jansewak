@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { loadProfile, Profile, saveProfile } from "@/lib/profile";
+import { hasSavedProfile, loadProfile, Profile, saveProfile } from "@/lib/profile";
 
 interface ProfileSectionProps {
   open: boolean;
@@ -30,6 +30,7 @@ function ProfileDialog({ onClose, onSaved }: Omit<ProfileSectionProps, "open">) 
   // Mounted only while the dialog is open, so state initializes from storage.
   const [profile, setProfile] = useState<Profile>(loadProfile);
   const [saved, setSaved] = useState(false);
+  const [isSeed] = useState(() => !hasSavedProfile());
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
@@ -45,6 +46,12 @@ function ProfileDialog({ onClose, onSaved }: Omit<ProfileSectionProps, "open">) 
           </button>
         </div>
 
+        {isSeed && (
+          <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+            🧪 Demo के लिए <b>sample details (Ramesh Kumar)</b> पहले से भरे हैं — सीधे आज़माएँ, या अपने असली details
+            लिखकर Save करें।
+          </p>
+        )}
         <p className="mb-4 rounded-lg bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-800">
           🔒 ये जानकारी सिर्फ <b>आपके ही device</b> पर रहती है — किसी server पर नहीं जाती। जनसेवक इनसे फॉर्म के लिए
           copy-paste text तैयार करती है। आधार नंबर, OTP या पासवर्ड यहाँ कभी न रखें।
