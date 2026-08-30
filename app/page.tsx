@@ -1,5 +1,5 @@
 import Link from "next/link";
-import Avatar from "@/components/Avatar";
+import AvatarTalk from "@/components/landing/AvatarTalk";
 import { PORTALS } from "@/lib/knowledge/portals";
 
 const CAPABILITIES = [
@@ -142,10 +142,7 @@ export default function Home() {
         </div>
         <div className="flex justify-center">
           <div className="rounded-3xl border border-orange-200 bg-white/70 p-6 shadow-xl shadow-orange-200/40">
-            <Avatar state="idle" size={300} />
-            <p className="mt-2 text-center text-sm font-medium text-stone-600">
-              &ldquo;नमस्ते! मैं जनसेवक हूँ। बताइए, आज क्या काम करना है?&rdquo;
-            </p>
+            <AvatarTalk />
           </div>
         </div>
       </section>
