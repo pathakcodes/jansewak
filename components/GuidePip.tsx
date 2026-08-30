@@ -57,32 +57,37 @@ export function GuidePanel({ guide, avatarState, getLevel, onToggleMic, onEndGui
         </span>
       </div>
 
-      {/* she guides in person — big, speaking with the live voice */}
-      <div className="-my-1 flex justify-center">
-        <Avatar state={avatarState} getLevel={getLevel} size={170} />
+      {/* she guides beside the next step — animated with her live voice */}
+      <div className="flex items-center gap-2 rounded-lg border border-orange-200 bg-white px-2 py-1.5">
+        <div className="-my-2 shrink-0">
+          <Avatar state={avatarState} getLevel={getLevel} size={92} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700">अगला कदम · Next step</p>
+          <p className="text-sm leading-snug text-stone-800">
+            {guide.instruction || "बोलिए, मैं आपकी स्क्रीन देखकर मदद करूँगी… (speak — I can see your screen)"}
+          </p>
+        </div>
       </div>
 
-      <div className="rounded-lg border border-orange-200 bg-white px-3 py-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700">अगला कदम · Next step</p>
-        <p className="text-sm leading-relaxed text-stone-800">
-          {guide.instruction || "बोलिए, मैं आपकी स्क्रीन देखकर मदद करूँगी… (speak — I can see your screen)"}
-        </p>
+      {/* the shared screen with her highlights — always visible, never pushed out */}
+      <div className="shrink-0">
+        <ScreenFeed stream={guide.stream} highlight={guide.highlight} />
       </div>
 
-      <ScreenFeed stream={guide.stream} highlight={guide.highlight} />
-
+      {/* only the chips relevant to the field on screen (auto-matched + agent-sent) */}
       {guide.copyTexts.length > 0 && (
-        <div className="space-y-1.5 overflow-y-auto" style={{ maxHeight: 130 }}>
-          {guide.copyTexts.map((c) => (
+        <div className="space-y-1.5">
+          {guide.copyTexts.slice(0, 3).map((c) => (
             <CopyText key={c.id} item={c} />
           ))}
         </div>
       )}
 
-      {/* profile details — always on hand, tap to copy into the form */}
-      <details open className="rounded-lg border border-stone-200 bg-white/70 p-2">
+      {/* full profile — tucked away until needed */}
+      <details className="rounded-lg border border-stone-200 bg-white/70 p-2">
         <summary className="cursor-pointer select-none text-xs font-semibold text-stone-600">
-          👤 मेरी जानकारी · tap to copy
+          👤 सारी जानकारी दिखाएँ · all my details
         </summary>
         <div className="mt-1.5 grid grid-cols-2 gap-1.5">
           {profileChips().map((c) => (
