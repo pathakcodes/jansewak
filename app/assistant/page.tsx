@@ -7,6 +7,8 @@ import ActionCard from "@/components/ActionCard";
 import LanguagePicker from "@/components/LanguagePicker";
 import TranscriptPanel from "@/components/TranscriptPanel";
 import { GuidePanel, GuideState, PipPortal } from "@/components/GuidePip";
+import ProfileSection from "@/components/ProfileSection";
+import { profileToPromptText } from "@/lib/profile";
 import { JanSewakLive, SessionStatus, TranscriptEntry } from "@/lib/live-client";
 import { ScreenShare } from "@/lib/screen";
 import { isDocumentPipSupported, openPipWindow } from "@/lib/pip";
@@ -27,6 +29,7 @@ export default function AssistantPage() {
   const [sharePrompt, setSharePrompt] = useState(false);
   const [guideStream, setGuideStream] = useState<MediaStream | null>(null);
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const clientRef = useRef<JanSewakLive | null>(null);
   const screenRef = useRef<ScreenShare | null>(null);
@@ -106,7 +109,7 @@ export default function AssistantPage() {
 
   /** Also needs a user gesture. */
   const popOutGuide = async () => {
-    const win = await openPipWindow(400, 580);
+    const win = await openPipWindow(420, 720);
     if (win) {
       win.addEventListener("pagehide", () => setPipWindow(null));
       setPipWindow(win);
@@ -143,6 +146,8 @@ export default function AssistantPage() {
   const guidePanel = (
     <GuidePanel
       guide={guideState}
+      avatarState={avatarState}
+      getLevel={() => clientRef.current?.playback.getLevel() ?? 0}
       onToggleMic={toggleMic}
       onEndGuide={endGuide}
       onToggleFileTool={() => setFileToolConfig((c) => (c ? null : {}))}
@@ -160,6 +165,12 @@ export default function AssistantPage() {
           जनसेवक <span className="hidden text-stone-400 sm:inline">· JanSewak</span>
         </Link>
         <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={() => setProfileOpen(true)}
+            className="flex items-center gap-1.5 rounded-full border border-stone-300 bg-white px-3 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-50"
+          >
+            👤 <span className="hidden sm:inline">प्रोफ़ाइल</span>
+          </button>
           <LanguagePicker value={language} onChange={setLanguage} disabled={live || status === "connecting"} />
           {live && (
             <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
@@ -240,9 +251,17 @@ export default function AssistantPage() {
           )}
 
           {!live && status !== "connecting" && (
-            <p className="max-w-sm text-center text-xs leading-relaxed text-stone-400">
-              माइक की अनुमति दें और अपनी भाषा में बोलें — टिकट, पेंशन, आधार, शिकायत… कुछ भी पूछिए।
-            </p>
+            <div className="space-y-2 text-center">
+              <p className="max-w-sm text-xs leading-relaxed text-stone-400">
+                माइक की अनुमति दें और अपनी भाषा में बोलें — टिकट, पेंशन, आधार, शिकायत… कुछ भी पूछिए।
+              </p>
+              <p className="text-xs text-stone-400">
+                👤 पहले <button onClick={() => setProfileOpen(true)} className="font-semibold text-emerald-700 underline">प्रोफ़ाइल भरें</button> ताकि फॉर्म का text तैयार मिले ·{" "}
+                <a href="/demo/income-tax" target="_blank" className="font-semibold text-emerald-700 underline">
+                  🧪 Sample form पर आज़माएँ
+                </a>
+              </p>
+            </div>
           )}
         </section>
 
@@ -256,6 +275,21 @@ export default function AssistantPage() {
           </div>
         </section>
       </main>
+
+      <ProfileSection
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+        onSaved={(p) => {
+          // A live session picks the change up immediately; new sessions get
+          // it via the system instruction.
+          const text = profileToPromptText(p);
+          if (text && clientRef.current) {
+            clientRef.current.sendText(
+              `[system note] The user just updated their saved profile:\n${text}\nUse these values in provide_text suggestions from now on. Briefly acknowledge in one short sentence.`,
+            );
+          }
+        }}
+      />
 
       {/* guide: floating panel, or portal into the PiP window */}
       {guideStream &&

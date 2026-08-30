@@ -21,9 +21,15 @@ export default function Avatar({ state, getLevel, size = 280 }: AvatarProps) {
   const smileRef = useRef<SVGGElement>(null);
   const mouthShapeRef = useRef<SVGEllipseElement>(null);
   const headRef = useRef<SVGGElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const raf = useRef<number>(0);
 
   useEffect(() => {
+    // Run the loop on the window that actually displays this avatar. When
+    // rendered inside the Document-PiP window, the main tab is usually
+    // hidden and its requestAnimationFrame is paused — the PiP window's
+    // own rAF keeps ticking.
+    const win: Window = svgRef.current?.ownerDocument?.defaultView ?? window;
     let smoothed = 0;
     const tick = () => {
       const level = state === "speaking" && getLevel ? getLevel() : 0;
@@ -45,15 +51,15 @@ export default function Avatar({ state, getLevel, size = 280 }: AvatarProps) {
         const tilt = state === "listening" ? -2.5 : 0;
         headRef.current.style.transform = `rotate(${sway + tilt}deg)`;
       }
-      raf.current = requestAnimationFrame(tick);
+      raf.current = win.requestAnimationFrame(tick);
     };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
+    raf.current = win.requestAnimationFrame(tick);
+    return () => win.cancelAnimationFrame(raf.current);
   }, [state, getLevel]);
 
   return (
     <div className="relative" style={{ width: size, height: size * 1.15 }}>
-      <svg viewBox="0 0 200 230" width="100%" height="100%" aria-label="JanSewak assistant avatar">
+      <svg ref={svgRef} viewBox="0 0 200 230" width="100%" height="100%" aria-label="JanSewak assistant avatar">
         <defs>
           <radialGradient id="halo" cx="50%" cy="42%" r="60%">
             <stop offset="0%" stopColor="#F3E8FF" />

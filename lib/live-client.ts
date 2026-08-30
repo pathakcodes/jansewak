@@ -3,6 +3,7 @@
 import { GoogleGenAI, LiveServerMessage, MediaResolution, Modality, Session } from "@google/genai";
 import { MicCapture, SpeakerPlayback } from "./audio";
 import { buildSystemInstruction } from "./prompts";
+import { loadProfile, profileToPromptText } from "./profile";
 import { dispatchToolCall, functionDeclarations, ToolUIHandlers } from "./tools";
 
 export type SessionStatus = "idle" | "connecting" | "live" | "error" | "closed";
@@ -102,7 +103,7 @@ export class JanSewakLive {
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } },
           },
-          systemInstruction: buildSystemInstruction(language),
+          systemInstruction: buildSystemInstruction(language, profileToPromptText(loadProfile())),
           tools: [{ googleSearch: {} }, { functionDeclarations }],
           // Read screen frames at a useful detail level for form/button text.
           mediaResolution: MediaResolution.MEDIA_RESOLUTION_MEDIUM,

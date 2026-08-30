@@ -75,6 +75,38 @@ export const PORTALS: Portal[] = [
     },
   },
   {
+    id: "sample-income-tax",
+    name: "Sample Income Tax Form (Demo)",
+    hindiName: "नमूना आयकर फॉर्म",
+    url: "/demo/income-tax",
+    category: "Demo",
+    tasks: ["Practice filling a form with JanSewak", "Hackathon demo", "Sample income tax form"],
+    guides: {
+      "fill-sample-form": [
+        {
+          step: 1,
+          instruction: "Click the 'Full Name (as per PAN)' field and type or paste the name. I will give you the exact text to copy.",
+          hindi: "'Full Name' वाले बॉक्स पर क्लिक करें — मैं कॉपी करने के लिए नाम दे दूँगी।",
+        },
+        {
+          step: 2,
+          instruction: "Click the 'PAN Number' field and enter the 10-character PAN (e.g. ABCDE1234F).",
+          hindi: "'PAN Number' बॉक्स में 10 अक्षरों का PAN भरें।",
+        },
+        {
+          step: 3,
+          instruction: "Click the 'Mobile Number' field and enter the 10-digit mobile number.",
+          hindi: "'Mobile Number' बॉक्स में 10 अंकों का मोबाइल नंबर भरें।",
+        },
+        {
+          step: 4,
+          instruction: "Click the blue 'Submit' button. A green success message confirms the demo form was submitted.",
+          hindi: "नीले 'Submit' बटन पर क्लिक करें — हरा संदेश दिखेगा कि फॉर्म जमा हो गया।",
+        },
+      ],
+    },
+  },
+  {
     id: "epfo",
     name: "EPFO",
     hindiName: "ईपीएफओ",

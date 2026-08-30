@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { CopyTextItem, FileToolConfig, Highlight } from "@/lib/tools";
+import Avatar, { AvatarState } from "./Avatar";
 import CopyText from "./CopyText";
 import FileTools from "./FileTools";
 import ScreenFeed from "./ScreenFeed";
@@ -18,13 +19,15 @@ export interface GuideState {
 
 interface GuidePanelProps {
   guide: GuideState;
+  avatarState: AvatarState;
+  getLevel: () => number;
   onToggleMic: () => void;
   onEndGuide: () => void;
   onToggleFileTool: () => void;
 }
 
 /** The guide UI itself — rendered either inside the PiP window or as a floating panel. */
-export function GuidePanel({ guide, onToggleMic, onEndGuide, onToggleFileTool }: GuidePanelProps) {
+export function GuidePanel({ guide, avatarState, getLevel, onToggleMic, onEndGuide, onToggleFileTool }: GuidePanelProps) {
   return (
     <div className="flex h-full flex-col gap-2.5 bg-[#FFF7EC] p-3" style={{ minHeight: 0 }}>
       <div className="flex items-center gap-2">
@@ -35,6 +38,11 @@ export function GuidePanel({ guide, onToggleMic, onEndGuide, onToggleFileTool }:
         <span className="ml-auto flex items-center gap-1 text-[11px] font-medium text-emerald-700">
           <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> LIVE
         </span>
+      </div>
+
+      {/* she guides in person — big, speaking with the live voice */}
+      <div className="-my-1 flex justify-center">
+        <Avatar state={avatarState} getLevel={getLevel} size={170} />
       </div>
 
       <div className="rounded-lg border border-orange-200 bg-white px-3 py-2">
