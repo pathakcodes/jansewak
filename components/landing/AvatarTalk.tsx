@@ -27,7 +27,10 @@ export default function AvatarTalk() {
 
   const line = LINES[lineIdx];
   const typing = chars < line.hi.length;
-  typingRef.current = typing;
+
+  useEffect(() => {
+    typingRef.current = typing;
+  }, [typing]);
 
   useEffect(() => {
     const t = setTimeout(
