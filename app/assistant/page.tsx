@@ -8,7 +8,26 @@ import LanguagePicker from "@/components/LanguagePicker";
 import TranscriptPanel from "@/components/TranscriptPanel";
 import { GuidePanel, GuideState, PipPortal } from "@/components/GuidePip";
 import ProfileSection from "@/components/ProfileSection";
-import { profileToPromptText } from "@/lib/profile";
+import { loadProfile, profileToPromptText } from "@/lib/profile";
+
+/** When the agent points at a known field, surface the matching profile
+ *  value as a copy chip automatically — no reliance on the model. */
+function suggestionsFor(text: string): CopyTextItem[] {
+  const p = loadProfile();
+  const t = text.toLowerCase();
+  const out: CopyTextItem[] = [];
+  const add = (id: string, fieldHint: string, value: string) => value && out.push({ id, fieldHint, text: value });
+  if (/name|नाम|naam/.test(t)) {
+    add("auto-name-en", "Name (English)", p.fullName);
+    add("auto-name-native", "नाम (हिन्दी)", p.nameNative);
+  } else if (/\bpan\b|पैन/.test(t)) add("auto-pan", "PAN", p.pan);
+  else if (/mobile|मोबाइल|phone|फ़ोन|फोन|संपर्क/.test(t)) add("auto-mobile", "Mobile", p.mobile);
+  else if (/email|ईमेल|मेल/.test(t)) add("auto-email", "Email", p.email);
+  else if (/address|पता|ठिकाना/.test(t)) add("auto-address", "पता · Address", p.address);
+  else if (/\bage\b|उम्र|आयु/.test(t)) add("auto-age", "Age", p.age);
+  else if (/gender|लिंग/.test(t)) add("auto-gender", "Gender", p.gender);
+  return out;
+}
 import { JanSewakLive, SessionStatus, TranscriptEntry } from "@/lib/live-client";
 import { ScreenShare } from "@/lib/screen";
 import { isDocumentPipSupported, openPipWindow } from "@/lib/pip";
@@ -33,6 +52,11 @@ export default function AssistantPage() {
 
   const clientRef = useRef<JanSewakLive | null>(null);
   const screenRef = useRef<ScreenShare | null>(null);
+
+  const pushSuggestions = useCallback((items: CopyTextItem[]) => {
+    if (items.length === 0) return;
+    setCopyTexts((prev) => [...items, ...prev.filter((c) => !items.some((i) => i.id === c.id))].slice(0, 5));
+  }, []);
 
   const endGuide = useCallback(() => {
     screenRef.current?.stop();
@@ -70,11 +94,17 @@ export default function AssistantPage() {
       onSpeakingChange: setSpeaking,
       onSuggestAction: (a) => setActions((prev) => [...prev.slice(-3), a]),
       onStartScreenGuide: () => setSharePrompt(true),
-      onHighlight: setHighlight,
+      onHighlight: (h) => {
+        setHighlight(h);
+        if (h) pushSuggestions(suggestionsFor(h.label));
+      },
       onProvideText: (item) => setCopyTexts((prev) => [item, ...prev.filter((c) => c.fieldHint !== item.fieldHint)].slice(0, 5)),
       onSetLanguage: setLanguage,
       onOpenFileTool: setFileToolConfig,
-      onInstruction: setInstruction,
+      onInstruction: (text) => {
+        setInstruction(text);
+        pushSuggestions(suggestionsFor(text));
+      },
       // Audio-thread heartbeat: drives screen capture even when this tab is
       // backgrounded (user is on the government site's tab).
       onMicTick: () => screenRef.current?.capture(),

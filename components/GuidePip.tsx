@@ -46,7 +46,7 @@ interface GuidePanelProps {
 /** The guide UI itself — rendered either inside the PiP window or as a floating panel. */
 export function GuidePanel({ guide, avatarState, getLevel, onToggleMic, onEndGuide, onToggleFileTool }: GuidePanelProps) {
   return (
-    <div className="flex h-full flex-col gap-2.5 bg-[#FFF7EC] p-3" style={{ minHeight: 0 }}>
+    <div className="flex h-full flex-col gap-2.5 overflow-y-auto bg-[#FFF7EC] p-3" style={{ minHeight: 0 }}>
       <div className="flex items-center gap-2">
         <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-b from-orange-500 via-white to-green-600 text-sm">
           🙏

@@ -172,7 +172,10 @@ export function dispatchToolCall(
         at: performance.now(),
       });
       if (args.instruction) ui.onInstruction(String(args.instruction));
-      return { highlighted: true };
+      return {
+        highlighted: true,
+        note: "If this is an input field, call provide_text NOW with the exact value to enter (use the saved profile), before saying anything else.",
+      };
     }
     case "provide_text": {
       ui.onProvideText({
